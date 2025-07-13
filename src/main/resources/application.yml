@@ -1,0 +1,14 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:mysql://sql12.freesqldatabase.com:3306/sql12789715?useSSL=false&serverTimezone=UTC
+    username: sql12789715
+    password: mBW7rDaffa
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+logging:
+  level:
+    org.hibernate.SQL: debug
+    org.hibernate.type.descriptor.sql.BasicBinder: trace
