@@ -1,16 +1,15 @@
-# 第一阶段：用 Maven 构建
-FROM maven:3.8.8-openjdk-17-slim AS builder
-WORKDIR /build
-# 只复制 pom.xml、mvn 脚本和源码
-COPY pom.xml .
-COPY mvnw .
+# ---- 构建阶段 ----
+FROM maven:3.9.0-openjdk-17-slim AS builder
+WORKDIR /workspace
+COPY pom.xml mvnw ./
 COPY .mvn .mvn
+RUN mvn -B -ntp dependency:go-offline
 COPY src src
-RUN chmod +x mvnw && ./mvnw package -DskipTests
+RUN mvn -B -ntp package -DskipTests
 
-# 第二阶段：运行时镜像
+# ---- 运行阶段 ----
 FROM openjdk:17-jdk-slim
 WORKDIR /app
-# 从构建阶段拷贝 jar
-COPY --from=builder /build/target/demo-0.0.1-SNAPSHOT.jar app.jar
+# 注意名称要和上面 mvn 打包出来的文件一致
+COPY --from=builder /workspace/target/demo-0.0.1-SNAPSHOT.jar app.jar
 ENTRYPOINT ["java","-jar","app.jar"]
