@@ -1,6 +1,13 @@
 HELP.md
 target/
 
+# ²»ºöÂÔ wrapper
+!.mvn/wrapper/maven-wrapper.jar
+!.mvn/wrapper/maven-wrapper.properties
+!mvnw
+!mvnw.cmd
+
+
 !**/src/main/**/target/
 !**/src/test/**/target/
 
