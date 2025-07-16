@@ -17,7 +17,10 @@ public class TaskController {
     // 获取全部任务
     @GetMapping("/all")
     public List<TodoTask> getAll() {
-        return taskService.list();
+        return taskService.lambdaQuery()
+                // 按 id 倒序：最新插入的排最前
+                .orderByDesc(TodoTask::getId)
+                .list();
     }
 
     // 获取已完成任务
@@ -33,7 +36,7 @@ public class TaskController {
     }
 
     // 添加任务
-    @PostMapping
+    @PostMapping("/add")
     public boolean addTask(@RequestBody TodoTask task) {
         return taskService.save(task);
     }
@@ -73,6 +76,4 @@ public class TaskController {
         result.put("pending", pending);
         return result;
     }
-
-
 }
