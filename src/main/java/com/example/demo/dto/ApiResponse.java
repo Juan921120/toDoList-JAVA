@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
+//通用返回数据
 public class ApiResponse<T> {
     /** 操作是否成功 */
     private boolean success;

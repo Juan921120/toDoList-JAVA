@@ -6,9 +6,10 @@ spring:
   lifecycle:
     timeout-per-shutdown-phase: 30s
   datasource:
-    url: jdbc:mysql://sql12.freesqldatabase.com:3306/sql12789715?useSSL=false&serverTimezone=UTC
-    username: sql12789715
-    password: mBW7rDaffa
+    url: jdbc:mysql://localhost:3306/miaomiao?useSSL=false&serverTimezone=UTC
+#    url: jdbc:mysql://localhost:3306/todo_db?useSSL=false&serverTimezone=UTC
+    username: root
+    password: juan1992
     driver-class-name: com.mysql.cj.jdbc.Driver
 
 logging:
@@ -17,4 +18,4 @@ logging:
     org.hibernate.type.descriptor.sql.BasicBinder: trace
 
 jwt:
-  secret: "f8&3k9@L#2pXz!qW"
+  secret: "f83k92pXzqWj8H9mKd7VxR2nE4tYuI1oP6aS5fG3hJ8L9cB6qW2rT5yU8iO1pA3sD6fG9hJ2kL5nQ8wE3rT6yU9iO2pA5sD8fG1hJ4kL7nQ0wE"

@@ -15,7 +15,9 @@ public class TodoTask {
     private  String text;
     private Boolean status;
 
-
+    // 新增：关联用户字段，使用BIGINT类型
+    @TableField("user_id")
+    private Long userId;
 
 
 }

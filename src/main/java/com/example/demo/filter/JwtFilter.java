@@ -34,8 +34,8 @@ public class JwtFilter implements Filter {
         String path = request.getRequestURI();
 
         // —— 白名单：登录、注册等公开接口放行 ——
-        if ("/login".equals(path)
-                || "/register".equals(path)
+        if ("/auth/login".equals(path)
+                || "/auth/register".equals(path)
                 // 放过 /static/ 目录下所有资源（Spring Boot 默认把 resources/static 下的文件映射到 /static/**）
                 || path.startsWith("/static/")
                 // 或者根据后缀放行
