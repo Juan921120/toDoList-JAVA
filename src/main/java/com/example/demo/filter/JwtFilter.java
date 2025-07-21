@@ -36,6 +36,8 @@ public class JwtFilter implements Filter {
         // —— 白名单：登录、注册等公开接口放行 ——
         if ("/auth/login".equals(path)
                 || "/auth/register".equals(path)
+                //todo 测试记得删掉
+                || path.startsWith("/debug")  // 修改这里！匹配所有 /debug 开头的路径
                 // 放过 /static/ 目录下所有资源（Spring Boot 默认把 resources/static 下的文件映射到 /static/**）
                 || path.startsWith("/static/")
                 // 或者根据后缀放行
