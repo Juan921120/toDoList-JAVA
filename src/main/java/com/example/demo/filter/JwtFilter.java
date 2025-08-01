@@ -1,6 +1,8 @@
 package com.example.demo.filter;
 
+import com.example.demo.dto.ApiResponse;
 import com.example.demo.utils.JwtUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.*;
@@ -11,36 +13,28 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 
-// 去掉@WebFilter，使用@Component让Spring管理
 @Component
 public class JwtFilter implements Filter {
 
     @Autowired
     private JwtUtil jwtUtil;
 
-    /**
-     * ServletRequest req：HTTP请求对象
-     * ServletResponse res：HTTP响应对象
-     * FilterChain chain：过滤器链
-     */
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     @Override
     public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain)
             throws IOException, ServletException {
-        //将通用的ServletRequest转换为HttpServletRequest，以便使用HTTP特有的方法
+
         HttpServletRequest request = (HttpServletRequest) req;
         HttpServletResponse response = (HttpServletResponse) res;
 
-        // 取出本次请求的 URI
         String path = request.getRequestURI();
 
         // —— 白名单：登录、注册等公开接口放行 ——
         if ("/auth/login".equals(path)
                 || "/auth/register".equals(path)
-                //todo 测试记得删掉
-                || path.startsWith("/debug")  // 修改这里！匹配所有 /debug 开头的路径
-                // 放过 /static/ 目录下所有资源（Spring Boot 默认把 resources/static 下的文件映射到 /static/**）
+                || path.startsWith("/debug")  // 测试用，生产环境请删除
                 || path.startsWith("/static/")
-                // 或者根据后缀放行
                 || path.matches(".*\\.(css|js|png|jpg|jpeg|gif|ico)$")) {
             chain.doFilter(req, res);
             return;
@@ -48,27 +42,38 @@ public class JwtFilter implements Filter {
 
         // —— 验证 JWT ——
         String auth = request.getHeader("Authorization");
-        //Bearer 是官方默认的“通行证”标签；JWT 就藏在 Authorization 请求头里的 Bearer 后面
         String prefix = "Bearer ";
 
-        if (auth != null && auth.startsWith(prefix)) { //检查Authorization头是否存在且以"Bearer "开头
-            String token = auth.substring(prefix.length()); //提取Token部分（去掉"Bearer "前缀
+        if (auth != null && auth.startsWith(prefix)) {
+            String token = auth.substring(prefix.length());
             try {
-                Claims claims = jwtUtil.parseToken(token); //使用JwtUtil解析Token
+                Claims claims = jwtUtil.parseToken(token);
                 // 把用户名放到 request 属性里，后续 controller 可以获取
                 request.setAttribute("username", claims.getSubject());
+                chain.doFilter(req, res);
+                return;
             } catch (JwtException e) {
-                // Token 无效或过期，直接返回 401
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "无效或过期的 Token");
+                // Token 无效或过期，返回统一格式的JSON响应
+                sendJsonResponse(response, "无效或过期的Token");
                 return;
             }
         } else {
-            // 没带 Token，返回 401
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "请先登录");
+            // 没带 Token，返回统一格式的JSON响应
+            sendJsonResponse(response, "请先登录");
             return;
         }
+    }
 
-        // 放行到后续 Filter 或 Controller
-        chain.doFilter(req, res);
+    /**
+     * 发送统一格式的JSON错误响应
+     */
+    private void sendJsonResponse(HttpServletResponse response, String message) throws IOException {
+        response.setStatus(HttpServletResponse.SC_OK); // 统一返回200状态码
+        response.setContentType("application/json;charset=UTF-8");
+
+        ApiResponse<Void> apiResponse = ApiResponse.fail(message);
+        String jsonResponse = objectMapper.writeValueAsString(apiResponse);
+
+        response.getWriter().write(jsonResponse);
     }
 }

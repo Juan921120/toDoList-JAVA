@@ -7,7 +7,6 @@ spring:
     timeout-per-shutdown-phase: 30s
   datasource:
     url: jdbc:mysql://localhost:3306/miaomiao?useSSL=false&serverTimezone=UTC
-    #    url: jdbc:mysql://localhost:3306/todo_db?useSSL=false&serverTimezone=UTC
     username: root
     password: juan1992
     driver-class-name: com.mysql.cj.jdbc.Driver
