@@ -1,39 +1,80 @@
 server:
+  address: 0.0.0.0
   port: 8080
-  shutdown: graceful
 
 spring:
+  profiles:
+    active: dev  # 默认激活开发环境，生产环境启动时会覆盖
+
   lifecycle:
     timeout-per-shutdown-phase: 30s
+
+  # 公共数据库配置
   datasource:
-    url: jdbc:mysql://localhost:3306/miaomiao?useSSL=false&serverTimezone=UTC
-    username: root
-    password: juan1992
     driver-class-name: com.mysql.cj.jdbc.Driver
+
+  # ========== 静态资源配置 ==========
+  web:
+    resources:
+      static-locations:
+        - classpath:/static/
+        - classpath:/public/
+        - classpath:/resources/
+        - classpath:/META-INF/resources/
+      cache:
+        period: 0
+        use-last-modified: false
+
+  mvc:
+    static-path-pattern: /**
+    servlet:
+      load-on-startup: 1
 
 logging:
   level:
-    # 原有的Hibernate日志配置
     org.hibernate.SQL: debug
     org.hibernate.type.descriptor.sql.BasicBinder: trace
-
-    # 添加Web请求日志 - 可以看到所有HTTP请求
     org.springframework.web: DEBUG
     org.springframework.web.servlet.DispatcherServlet: DEBUG
-
-    # 添加你的应用包日志 - 替换com.example.demo为你的实际包名
     com.example.demo: DEBUG
-
-
-    # Tomcat请求日志 - 可以看到HTTP请求详情
     org.apache.coyote.http11: DEBUG
-
-    # 根日志级别设置为INFO，避免过多无关日志
+    org.springframework.web.servlet.resource: DEBUG
     root: INFO
 
-  # 可选：自定义日志格式，包含更多信息
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%logger{36}] - %msg%n"
 
 jwt:
   secret: "f83k92pXzqWj8H9mKd7VxR2nE4tYuI1oP6aS5fG3hJ8L9cB6qW2rT5yU8iO1pA3sD6fG9hJ2kL5nQ8wE3rT6yU9iO2pA5sD8fG1hJ4kL7nQ0wE"
+
+---
+# ========== 开发环境配置 ==========
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: jdbc:mysql://localhost:3306/miaomiao?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
+    username: root
+    password: juan1992  # 开发环境密码
+
+---
+# ========== 生产环境配置 ==========
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: jdbc:mysql://localhost:3306/miaomiao?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
+    username: root
+    password: Juan1992@ # 生产环境密码
+
+  # 生产环境日志级别调整
+logging:
+  level:
+    org.springframework.web: INFO
+    org.springframework.web.servlet.DispatcherServlet: INFO
+    com.example.demo: INFO
+    org.apache.coyote.http11: INFO
+    org.springframework.web.servlet.resource: INFO
+    root: WARN

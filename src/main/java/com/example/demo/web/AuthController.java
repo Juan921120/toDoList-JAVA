@@ -1,11 +1,12 @@
 package com.example.demo.web;
 
-import com.example.demo.dto.ApiResponse;
 import com.example.demo.dto.AuthRequest;
+import com.example.demo.dto.ErrorResponse;  // 新增导入
 import com.example.demo.entity.User;
 import com.example.demo.service.UserService;
 import com.example.demo.utils.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;  // 新增导入
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -28,17 +29,19 @@ public class AuthController {
     private BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @PostMapping("/login")
-    public ApiResponse<Map<String,Object>> login(@RequestBody AuthRequest req) {
+    public ResponseEntity<?> login(@RequestBody AuthRequest req) {  // 修改返回类型
 
         // 1. 根据用户名查用户
         User user = userService.findByUsername(req.getUsername());
         if (user == null) {
-            return ApiResponse.fail("用户不存在");
+            return ResponseEntity.badRequest()  // 修改返回方式
+                    .body(ErrorResponse.of("USER_NOT_FOUND", "用户不存在"));
         }
 
         // 2. 验证密码
         if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {
-            return ApiResponse.fail("用户名或密码错误");
+            return ResponseEntity.badRequest()  // 修改返回方式
+                    .body(ErrorResponse.of("INVALID_CREDENTIALS", "用户名或密码错误"));
         }
 
         // 3. 生成 Token
@@ -50,25 +53,28 @@ public class AuthController {
         data.put("username", user.getUsername());
 
         // 5. 返回
-        return ApiResponse.ok("登录成功", data);
+        return ResponseEntity.ok(data);  // 修改返回方式
     }
 
     @PostMapping("/register")
-    public ApiResponse<Map<String,Object>> register(@RequestBody AuthRequest req) {
+    public ResponseEntity<?> register(@RequestBody AuthRequest req) {  // 修改返回类型
 
         // 1. 参数验证
         if (req.getUsername() == null || req.getUsername().trim().isEmpty()) {
-            return ApiResponse.fail("用户名不能为空");
+            return ResponseEntity.badRequest()  // 修改返回方式
+                    .body(ErrorResponse.of("INVALID_USERNAME", "用户名不能为空"));
         }
 
         if (req.getPassword() == null || req.getPassword().trim().isEmpty()) {
-            return ApiResponse.fail("密码不能为空");
+            return ResponseEntity.badRequest()  // 修改返回方式
+                    .body(ErrorResponse.of("INVALID_PASSWORD", "密码不能为空"));
         }
 
         // 2. 检查用户名是否已存在
         User existingUser = userService.findByUsername(req.getUsername());
         if (existingUser != null) {
-            return ApiResponse.fail("用户名已存在");
+            return ResponseEntity.badRequest()  // 修改返回方式
+                    .body(ErrorResponse.of("USERNAME_EXISTS", "用户名已存在"));
         }
 
         // 3. 创建用户
@@ -85,10 +91,11 @@ public class AuthController {
             data.put("userId", newUser.getId());
 
             // 6. 返回
-            return ApiResponse.ok("注册成功", data);
+            return ResponseEntity.ok(data);  // 修改返回方式
 
         } catch (Exception e) {
-            return ApiResponse.fail("注册失败：" + e.getMessage());
+            return ResponseEntity.internalServerError()  // 修改返回方式
+                    .body(ErrorResponse.of("REGISTER_FAILED", "注册失败：" + e.getMessage()));
         }
     }
 }

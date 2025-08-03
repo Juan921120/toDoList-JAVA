@@ -1,6 +1,6 @@
 package com.example.demo.filter;
 
-import com.example.demo.dto.ApiResponse;
+import com.example.demo.dto.ErrorResponse;
 import com.example.demo.utils.JwtUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
@@ -30,12 +30,11 @@ public class JwtFilter implements Filter {
 
         String path = request.getRequestURI();
 
-        // —— 白名单：登录、注册等公开接口放行 ——
+        // —— 白名单：只放行登录注册和静态资源 ——
         if ("/auth/login".equals(path)
                 || "/auth/register".equals(path)
-                || path.startsWith("/debug")  // 测试用，生产环境请删除
                 || path.startsWith("/static/")
-                || path.matches(".*\\.(css|js|png|jpg|jpeg|gif|ico)$")) {
+                || path.matches(".*\\.(css|js|png|jpg|jpeg|gif|ico|html|woff|woff2|ttf|svg|map)$")) {
             chain.doFilter(req, res);
             return;
         }
@@ -48,31 +47,25 @@ public class JwtFilter implements Filter {
             String token = auth.substring(prefix.length());
             try {
                 Claims claims = jwtUtil.parseToken(token);
-                // 把用户名放到 request 属性里，后续 controller 可以获取
                 request.setAttribute("username", claims.getSubject());
                 chain.doFilter(req, res);
                 return;
             } catch (JwtException e) {
-                // Token 无效或过期，返回统一格式的JSON响应
-                sendJsonResponse(response, "无效或过期的Token");
+                sendJsonResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "INVALID_TOKEN", "无效或过期的Token");
                 return;
             }
         } else {
-            // 没带 Token，返回统一格式的JSON响应
-            sendJsonResponse(response, "请先登录");
+            sendJsonResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "MISSING_TOKEN", "请先登录");
             return;
         }
     }
 
-    /**
-     * 发送统一格式的JSON错误响应
-     */
-    private void sendJsonResponse(HttpServletResponse response, String message) throws IOException {
-        response.setStatus(HttpServletResponse.SC_OK); // 统一返回200状态码
+    private void sendJsonResponse(HttpServletResponse response, int statusCode, String error, String message) throws IOException {
+        response.setStatus(statusCode);
         response.setContentType("application/json;charset=UTF-8");
 
-        ApiResponse<Void> apiResponse = ApiResponse.fail(message);
-        String jsonResponse = objectMapper.writeValueAsString(apiResponse);
+        ErrorResponse errorResponse = ErrorResponse.of(error, message);
+        String jsonResponse = objectMapper.writeValueAsString(errorResponse);
 
         response.getWriter().write(jsonResponse);
     }
