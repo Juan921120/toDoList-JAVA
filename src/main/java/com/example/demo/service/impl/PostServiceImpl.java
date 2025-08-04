@@ -64,6 +64,30 @@ public class PostServiceImpl extends ServiceImpl<PostMapper, Post> implements Po
     }
 
     @Override
+    public IPage<PostDTO.ListResponse> getMyPostList(String username, int page, int size) {
+        Page<Post> postPage = new Page<>(page, size);
+
+        // 查询当前用户的帖子，按创建时间倒序
+        IPage<Post> posts = lambdaQuery()
+                .eq(Post::getAuthor, username)  // 过滤条件：只查询当前用户的帖子
+                .orderByDesc(Post::getLastReplyTime)
+                .orderByDesc(Post::getCreateTime)
+                .page(postPage);
+
+        // 转换为DTO
+        Page<PostDTO.ListResponse> responsePage = new Page<>(page, size);
+        responsePage.setTotal(posts.getTotal());
+        responsePage.setPages(posts.getPages());
+
+        List<PostDTO.ListResponse> responseList = posts.getRecords().stream()
+                .map(this::convertToListResponse)
+                .collect(Collectors.toList());
+
+        responsePage.setRecords(responseList);
+        return responsePage;
+    }
+
+    @Override
     public PostDTO.DetailResponse getPostDetail(Long postId) {
         Post post = getById(postId);
         if (post == null) {

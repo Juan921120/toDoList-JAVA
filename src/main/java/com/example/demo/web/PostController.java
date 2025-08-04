@@ -12,6 +12,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;  // 新增导入
 import org.springframework.web.bind.annotation.*;
+import com.example.demo.dto.PageResponse;
 
 @RestController
 @RequestMapping("/posts")
@@ -54,23 +55,59 @@ public class PostController {
         }
     }
 
+
     /**
      * 获取帖子列表（分页）
      */
     @GetMapping
-    public ResponseEntity<?> getPostList(  // 修改返回类型
-                                           @RequestParam(defaultValue = "1") int page,
-                                           @RequestParam(defaultValue = "10") int size) {
+    public ResponseEntity<?> getPostList(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
 
         if (page < 1) page = 1;
         if (size < 1 || size > 50) size = 10; // 限制每页最多50条
 
         try {
             IPage<PostDTO.ListResponse> posts = postService.getPostList(page, size);
-            return ResponseEntity.ok(posts);  // 修改返回方式
+
+            // 转换为统一的分页响应格式
+            PageResponse<PostDTO.ListResponse> response = PageResponse.fromIPage(posts);
+
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return ResponseEntity.internalServerError()  // 修改返回方式
+            return ResponseEntity.internalServerError()
                     .body(ErrorResponse.of("GET_POSTS_FAILED", "获取帖子列表失败：" + e.getMessage()));
+        }
+    }
+    /**
+     * 新增：获取当前用户的帖子列表（分页）
+     */
+
+    /**
+     * 获取当前用户的帖子列表（分页）
+     */
+    @GetMapping("/my")
+    public ResponseEntity<?> getMyPostList(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            HttpServletRequest httpRequest) {
+
+        if (page < 1) page = 1;
+        if (size < 1 || size > 50) size = 10; // 限制每页最多50条
+
+        // 从JWT过滤器中获取用户名
+        String username = (String) httpRequest.getAttribute("username");
+
+        try {
+            IPage<PostDTO.ListResponse> posts = postService.getMyPostList(username, page, size);
+
+            // 转换为统一的分页响应格式
+            PageResponse<PostDTO.ListResponse> response = PageResponse.fromIPage(posts);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(ErrorResponse.of("GET_MY_POSTS_FAILED", "获取我的帖子列表失败：" + e.getMessage()));
         }
     }
 

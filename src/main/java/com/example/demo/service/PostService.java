@@ -14,15 +14,23 @@ public interface PostService extends IService<Post> {
     Post createPost(String username, PostDTO.CreateRequest request);
 
     /**
-     * 获取帖子列表（分页）
+     * 获取所有帖子列表（分页）
      */
     IPage<PostDTO.ListResponse> getPostList(int page, int size);
+
+    /**
+     * 新增：获取当前用户的帖子列表（分页）
+     */
+    IPage<PostDTO.ListResponse> getMyPostList(String username, int page, int size);
+
 
     /**
      * 获取帖子详情（包含回复）
      */
     PostDTO.DetailResponse getPostDetail(Long postId);
 
+    /**删除自己帖子
+     */
     public boolean deletePost(Long postId, String username);
 
 }
