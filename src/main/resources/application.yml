@@ -13,6 +13,12 @@ spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
 
+  # 文件上传配置
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 20MB
+
   # ========== 静态资源配置 ==========
   web:
     resources:
@@ -29,6 +35,12 @@ spring:
     static-path-pattern: /**
     servlet:
       load-on-startup: 1
+
+app:
+  upload:
+    image-path: /uploads/images/
+  server:
+    base-url: http://localhost:8080
 
 logging:
   level:

@@ -1,14 +1,17 @@
 package com.example.demo.service.impl;
+
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.example.demo.dto.ReplyDTO;
 import com.example.demo.entity.Reply;
 import com.example.demo.mapper.PostMapper;
 import com.example.demo.mapper.ReplyMapper;
 import com.example.demo.service.ReplyService;
+import com.example.demo.utils.HtmlUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -24,7 +27,11 @@ public class ReplyServiceImpl extends ServiceImpl<ReplyMapper, Reply> implements
     public Reply createReply(Long postId, String username, ReplyDTO.CreateRequest request) {
         Reply reply = new Reply();
         reply.setPostId(postId);
-        reply.setContent(request.getContent());
+
+        // 清理HTML内容，防止XSS攻击
+        String cleanContent = HtmlUtils.sanitizeHtml(request.getContent());
+        reply.setContent(cleanContent);
+
         reply.setAuthor(username);
         reply.setCreateTime(LocalDateTime.now());
 

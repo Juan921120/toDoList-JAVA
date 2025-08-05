@@ -11,6 +11,7 @@ import com.example.demo.entity.Reply;
 import com.example.demo.mapper.PostMapper;
 import com.example.demo.mapper.ReplyMapper;
 import com.example.demo.service.PostService;
+import com.example.demo.utils.HtmlUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -29,8 +30,12 @@ public class PostServiceImpl extends ServiceImpl<PostMapper, Post> implements Po
     @Override
     public Post createPost(String username, PostDTO.CreateRequest request) {
         Post post = new Post();
-        post.setTitle(request.getTitle());
-        post.setContent(request.getContent());
+        post.setTitle(request.getTitle().trim());
+
+        // 清理HTML内容，防止XSS攻击
+        String cleanContent = HtmlUtils.sanitizeHtml(request.getContent());
+        post.setContent(cleanContent);
+
         post.setAuthor(username);
         post.setCreateTime(LocalDateTime.now());
         post.setUpdateTime(LocalDateTime.now());
@@ -116,13 +121,8 @@ public class PostServiceImpl extends ServiceImpl<PostMapper, Post> implements Po
         PostDTO.ListResponse response = new PostDTO.ListResponse();
         BeanUtils.copyProperties(post, response);
 
-        // 生成内容预览
-        String content = post.getContent();
-        if (content != null && content.length() > 100) {
-            response.setContentPreview(content.substring(0, 100) + "...");
-        } else {
-            response.setContentPreview(content);
-        }
+        // 使用HtmlUtils生成富文本内容的预览
+        response.setContentPreview(HtmlUtils.generatePreview(post.getContent(), 100));
 
         return response;
     }
