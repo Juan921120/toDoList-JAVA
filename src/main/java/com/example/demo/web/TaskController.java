@@ -1,15 +1,19 @@
 package com.example.demo.web;
 
-import com.example.demo.dto.ErrorResponse;  // 新增导入
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.demo.dto.ErrorResponse;
+import com.example.demo.dto.PageResponse;
+import com.example.demo.entity.TodoTask;
+import com.example.demo.entity.User;
 import com.example.demo.service.TaskService;
 import com.example.demo.service.UserService;
-import com.example.demo.entity.User;
 import org.springframework.beans.factory.annotation.Autowired;
-import com.example.demo.entity.TodoTask;
-import org.springframework.http.ResponseEntity;  // 新增导入
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import jakarta.servlet.http.HttpServletRequest;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,253 +29,262 @@ public class TaskController {
     private UserService userService;
 
     /**
-     * 从请求中获取当前登录用户的ID
+     * 从请求中获取当前用户（JWT Filter 已经验证过身份）
      */
-    private Long getCurrentUserId(HttpServletRequest request) {
+    private User getCurrentUser(HttpServletRequest request) {
         String username = (String) request.getAttribute("username");
-        if (username == null) {
-            throw new RuntimeException("用户未登录");
-        }
-        User user = userService.findByUsername(username);
-        if (user == null) {
-            throw new RuntimeException("用户不存在");
-        }
-        return user.getId();
+        return userService.findByUsername(username);
     }
 
-    // 获取当前用户的全部任务
-    @GetMapping("/all")
-    public ResponseEntity<?> getAll(HttpServletRequest request) {  // 修改返回类型
-        try {
-            Long userId = getCurrentUserId(request);
-            List<TodoTask> tasks = taskService.lambdaQuery()
-                    .eq(TodoTask::getUserId, userId)
-                    .orderByDesc(TodoTask::getId)
-                    .list();
-            return ResponseEntity.ok(tasks);  // 修改返回方式
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError()  // 修改返回方式
-                    .body(ErrorResponse.of("GET_TASKS_FAILED", "获取任务失败：" + e.getMessage()));
-        }
-    }
-
-    // 获取当前用户的已完成任务
-    @GetMapping("/completed")
-    public ResponseEntity<?> getCompleted(HttpServletRequest request) {  // 修改返回类型
-        try {
-            Long userId = getCurrentUserId(request);
-            List<TodoTask> tasks = taskService.lambdaQuery()
-                    .eq(TodoTask::getUserId, userId)
-                    .eq(TodoTask::getStatus, true)
-                    .orderByDesc(TodoTask::getId)
-                    .list();
-            return ResponseEntity.ok(tasks);  // 修改返回方式
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError()  // 修改返回方式
-                    .body(ErrorResponse.of("GET_TASKS_FAILED", "获取任务失败：" + e.getMessage()));
-        }
-    }
-
-    // 获取当前用户的未完成任务
+    /**
+     * 分页获取待办任务
+     */
     @GetMapping("/pending")
-    public ResponseEntity<?> getPending(HttpServletRequest request) {  // 修改返回类型
-        try {
-            Long userId = getCurrentUserId(request);
-            List<TodoTask> tasks = taskService.lambdaQuery()
-                    .eq(TodoTask::getUserId, userId)
-                    .eq(TodoTask::getStatus, false)
-                    .orderByDesc(TodoTask::getId)
-                    .list();
-            return ResponseEntity.ok(tasks);  // 修改返回方式
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError()  // 修改返回方式
-                    .body(ErrorResponse.of("GET_TASKS_FAILED", "获取任务失败：" + e.getMessage()));
-        }
+    public ResponseEntity<?> getPendingTasks(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer pageSize,
+            HttpServletRequest request) {
+
+        User currentUser = getCurrentUser(request);
+
+        Page<TodoTask> pageObj = new Page<>(page, pageSize);
+        QueryWrapper<TodoTask> wrapper = new QueryWrapper<>();
+        wrapper.eq("user_id", currentUser.getId())
+                .eq("status", false)
+                .orderByDesc("id"); // 按创建时间倒序
+
+        IPage<TodoTask> result = taskService.page(pageObj, wrapper);
+        PageResponse<TodoTask> pageResponse = PageResponse.fromIPage(result);
+
+        return ResponseEntity.ok(pageResponse);
     }
 
-    // 添加任务（自动关联到当前用户）
-    @PostMapping("/add")
-    public ResponseEntity<?> addTask(@RequestBody TodoTask task, HttpServletRequest request) {  // 修改返回类型
-        try {
-            Long userId = getCurrentUserId(request);
-            // 设置任务的用户信息
-            task.setUserId(userId);
-            boolean success = taskService.save(task);
+    /**
+     * 分页获取已完成任务
+     */
+    @GetMapping("/completed")
+    public ResponseEntity<?> getCompletedTasks(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer pageSize,
+            HttpServletRequest request) {
 
-            if (success) {
-                return ResponseEntity.ok(task);  // 修改返回方式 - 返回创建的任务
-            } else {
-                return ResponseEntity.internalServerError()  // 修改返回方式
-                        .body(ErrorResponse.of("ADD_TASK_FAILED", "任务添加失败"));
-            }
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError()  // 修改返回方式
-                    .body(ErrorResponse.of("ADD_TASK_FAILED", "添加任务失败：" + e.getMessage()));
-        }
+        User currentUser = getCurrentUser(request);
+
+        Page<TodoTask> pageObj = new Page<>(page, pageSize);
+        QueryWrapper<TodoTask> wrapper = new QueryWrapper<>();
+        wrapper.eq("user_id", currentUser.getId())
+                .eq("status", true)
+                .orderByDesc("id");
+
+        IPage<TodoTask> result = taskService.page(pageObj, wrapper);
+        PageResponse<TodoTask> pageResponse = PageResponse.fromIPage(result);
+
+        return ResponseEntity.ok(pageResponse);
     }
 
-    // 单个任务标记为完成（只能操作自己的任务）
-    @PutMapping("/complete/{id}")
-    public ResponseEntity<?> completeTask(@PathVariable Integer id, HttpServletRequest request) {  // 修改返回类型
-        try {
-            Long userId = getCurrentUserId(request);
+    /**
+     * 分页获取所有任务
+     */
+    @GetMapping("/all")
+    public ResponseEntity<?> getAllTasks(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer pageSize,
+            HttpServletRequest request) {
 
-            // 先查询任务是否属于当前用户
-            TodoTask existingTask = taskService.lambdaQuery()
-                    .eq(TodoTask::getId, id)
-                    .eq(TodoTask::getUserId, userId)
-                    .one();
+        User currentUser = getCurrentUser(request);
 
-            if (existingTask == null) {
-                return ResponseEntity.status(403)  // 修改返回方式 - 403 Forbidden
-                        .body(ErrorResponse.of("ACCESS_DENIED", "任务不存在或无权限操作"));
-            }
+        Page<TodoTask> pageObj = new Page<>(page, pageSize);
+        QueryWrapper<TodoTask> wrapper = new QueryWrapper<>();
+        wrapper.eq("user_id", currentUser.getId())
+                .orderByDesc("id");
 
-            TodoTask task = new TodoTask();
-            task.setId(id);
-            task.setStatus(true);
-            boolean success = taskService.updateById(task);
+        IPage<TodoTask> result = taskService.page(pageObj, wrapper);
+        PageResponse<TodoTask> pageResponse = PageResponse.fromIPage(result);
 
-            if (success) {
-                return ResponseEntity.noContent().build();  // 修改返回方式 - 204 No Content
-            } else {
-                return ResponseEntity.internalServerError()  // 修改返回方式
-                        .body(ErrorResponse.of("UPDATE_TASK_FAILED", "任务完成失败"));
-            }
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError()  // 修改返回方式
-                    .body(ErrorResponse.of("UPDATE_TASK_FAILED", "完成任务失败：" + e.getMessage()));
-        }
+        return ResponseEntity.ok(pageResponse);
     }
 
-    // 批量完成任务（只能操作自己的任务）
-    @PutMapping("/complete/batch")
-    public ResponseEntity<?> batchComplete(@RequestBody List<Integer> ids, HttpServletRequest request) {  // 修改返回类型
-        try {
-            Long userId = getCurrentUserId(request);
-
-            // 验证所有任务都属于当前用户
-            long count = taskService.lambdaQuery()
-                    .eq(TodoTask::getUserId, userId)
-                    .in(TodoTask::getId, ids)
-                    .count();
-
-            if (count != ids.size()) {
-                return ResponseEntity.status(403)  // 修改返回方式 - 403 Forbidden
-                        .body(ErrorResponse.of("ACCESS_DENIED", "部分任务不存在或无权限操作"));
-            }
-
-            List<TodoTask> updateList = ids.stream().map(id -> {
-                TodoTask task = new TodoTask();
-                task.setId(id);
-                task.setStatus(true);
-                return task;
-            }).toList();
-
-            boolean success = taskService.updateBatchById(updateList);
-
-            if (success) {
-                return ResponseEntity.noContent().build();  // 修改返回方式 - 204 No Content
-            } else {
-                return ResponseEntity.internalServerError()  // 修改返回方式
-                        .body(ErrorResponse.of("BATCH_UPDATE_FAILED", "批量完成任务失败"));
-            }
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError()  // 修改返回方式
-                    .body(ErrorResponse.of("BATCH_UPDATE_FAILED", "批量完成任务失败：" + e.getMessage()));
-        }
-    }
-
-    // 统计当前用户的任务
+    /**
+     * 获取任务统计
+     */
     @GetMapping("/count")
-    public ResponseEntity<?> countAllStatus(HttpServletRequest request) {  // 修改返回类型
+    public ResponseEntity<?> getTaskCount(HttpServletRequest request) {
+        User currentUser = getCurrentUser(request);
+
+        QueryWrapper<TodoTask> wrapper = new QueryWrapper<>();
+        wrapper.eq("user_id", currentUser.getId());
+
+        long total = taskService.count(wrapper);
+
+        wrapper.eq("status", true);
+        long completed = taskService.count(wrapper);
+
+        long pending = total - completed;
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("total", total);
+        result.put("completed", completed);
+        result.put("pending", pending);
+        result.put("percentage", total > 0 ? Math.round((completed * 100.0) / total) : 0);
+
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * 添加任务
+     */
+    @PostMapping("/add")
+    public ResponseEntity<?> addTask(@RequestBody Map<String, Object> taskData,
+                                     HttpServletRequest request) {
+        User currentUser = getCurrentUser(request);
+
+        String text = (String) taskData.get("text");
+        if (text == null || text.trim().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(ErrorResponse.of("INVALID_TASK", "任务内容不能为空"));
+        }
+
         try {
-            Long userId = getCurrentUserId(request);
+            TodoTask task = new TodoTask();
+            task.setText(text.trim());
+            task.setStatus(false);
+            task.setUserId(currentUser.getId());
 
-            long total = taskService.lambdaQuery()
-                    .eq(TodoTask::getUserId, userId)
-                    .count();
-
-            long completed = taskService.lambdaQuery()
-                    .eq(TodoTask::getUserId, userId)
-                    .eq(TodoTask::getStatus, true)
-                    .count();
-
-            long pending = total - completed;
-
-            Map<String, Long> result = new HashMap<>();
-            result.put("total", total);
-            result.put("completed", completed);
-            result.put("pending", pending);
-
-            return ResponseEntity.ok(result);  // 修改返回方式
+            boolean success = taskService.save(task);
+            if (success) {
+                return ResponseEntity.ok(Map.of("message", "添加成功", "taskId", task.getId()));
+            } else {
+                return ResponseEntity.internalServerError()
+                        .body(ErrorResponse.of("SAVE_FAILED", "保存任务失败"));
+            }
         } catch (Exception e) {
-            return ResponseEntity.internalServerError()  // 修改返回方式
-                    .body(ErrorResponse.of("COUNT_FAILED", "获取统计数据失败：" + e.getMessage()));
+            return ResponseEntity.internalServerError()
+                    .body(ErrorResponse.of("SERVER_ERROR", "服务器错误：" + e.getMessage()));
         }
     }
 
-    // 删除任务（只能删除自己的任务）
-    @DeleteMapping("/delete/{id}")
-    public ResponseEntity<?> deleteTask(@PathVariable Integer id, HttpServletRequest request) {  // 修改返回类型
-        try {
-            Long userId = getCurrentUserId(request);
+    /**
+     * 完成单个任务
+     */
+    @PutMapping("/complete/{id}")
+    public ResponseEntity<?> completeTask(@PathVariable Long id, HttpServletRequest request) {
+        User currentUser = getCurrentUser(request);
 
-            // 先查询任务是否属于当前用户
-            TodoTask existingTask = taskService.lambdaQuery()
-                    .eq(TodoTask::getId, id)
-                    .eq(TodoTask::getUserId, userId)
-                    .one();
+        TodoTask task = taskService.getById(id);
+        if (task == null) {
+            return ResponseEntity.badRequest()
+                    .body(ErrorResponse.of("TASK_NOT_FOUND", "任务不存在"));
+        }
 
-            if (existingTask == null) {
-                return ResponseEntity.status(403)  // 修改返回方式 - 403 Forbidden
-                        .body(ErrorResponse.of("ACCESS_DENIED", "任务不存在或无权限操作"));
-            }
+        // 检查任务所有权
+        if (!task.getUserId().equals(currentUser.getId())) {
+            return ResponseEntity.status(403)
+                    .body(ErrorResponse.of("FORBIDDEN", "无权操作此任务"));
+        }
 
-            boolean success = taskService.removeById(id);
+        task.setStatus(true);
+        boolean success = taskService.updateById(task);
 
-            if (success) {
-                return ResponseEntity.noContent().build();  // 修改返回方式 - 204 No Content
-            } else {
-                return ResponseEntity.internalServerError()  // 修改返回方式
-                        .body(ErrorResponse.of("DELETE_TASK_FAILED", "任务删除失败"));
-            }
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError()  // 修改返回方式
-                    .body(ErrorResponse.of("DELETE_TASK_FAILED", "删除任务失败：" + e.getMessage()));
+        if (success) {
+            return ResponseEntity.ok(Map.of("message", "任务已完成"));
+        } else {
+            return ResponseEntity.internalServerError()
+                    .body(ErrorResponse.of("UPDATE_FAILED", "更新任务失败"));
         }
     }
 
-    // 更新任务内容（只能更新自己的任务）
-    @PutMapping("/update/{id}")
-    public ResponseEntity<?> updateTask(@PathVariable Integer id, @RequestBody TodoTask task, HttpServletRequest request) {  // 修改返回类型
-        try {
-            Long userId = getCurrentUserId(request);
+    /**
+     * 批量完成任务
+     */
+    @PutMapping("/complete/batch")
+    public ResponseEntity<?> batchCompleteTask(@RequestBody List<Long> taskIds,
+                                               HttpServletRequest request) {
+        User currentUser = getCurrentUser(request);
 
-            // 先查询任务是否属于当前用户
-            TodoTask existingTask = taskService.lambdaQuery()
-                    .eq(TodoTask::getId, id)
-                    .eq(TodoTask::getUserId, userId)
-                    .one();
+        if (taskIds == null || taskIds.isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(ErrorResponse.of("INVALID_TASK_IDS", "任务ID列表不能为空"));
+        }
 
-            if (existingTask == null) {
-                return ResponseEntity.status(403)  // 修改返回方式 - 403 Forbidden
-                        .body(ErrorResponse.of("ACCESS_DENIED", "任务不存在或无权限操作"));
-            }
+        // 查询要更新的任务，确保都属于当前用户
+        QueryWrapper<TodoTask> wrapper = new QueryWrapper<>();
+        wrapper.in("id", taskIds).eq("user_id", currentUser.getId());
+        List<TodoTask> tasks = taskService.list(wrapper);
 
-            task.setId(id);
-            task.setUserId(userId); // 确保用户ID不被篡改
-            boolean success = taskService.updateById(task);
+        if (tasks.size() != taskIds.size()) {
+            return ResponseEntity.badRequest()
+                    .body(ErrorResponse.of("INVALID_TASKS", "部分任务不存在或无权操作"));
+        }
 
-            if (success) {
-                return ResponseEntity.ok(task);  // 修改返回方式 - 返回更新后的任务
-            } else {
-                return ResponseEntity.internalServerError()  // 修改返回方式
-                        .body(ErrorResponse.of("UPDATE_TASK_FAILED", "任务更新失败"));
-            }
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError()  // 修改返回方式
-                    .body(ErrorResponse.of("UPDATE_TASK_FAILED", "更新任务失败：" + e.getMessage()));
+        // 批量更新状态
+        tasks.forEach(task -> task.setStatus(true));
+        boolean success = taskService.updateBatchById(tasks);
+
+        if (success) {
+            return ResponseEntity.ok(Map.of("message", "批量完成成功", "count", tasks.size()));
+        } else {
+            return ResponseEntity.internalServerError()
+                    .body(ErrorResponse.of("UPDATE_FAILED", "批量更新失败"));
+        }
+    }
+
+    /**
+     * 删除单个任务
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteTask(@PathVariable Long id, HttpServletRequest request) {
+        User currentUser = getCurrentUser(request);
+
+        TodoTask task = taskService.getById(id);
+        if (task == null) {
+            return ResponseEntity.badRequest()
+                    .body(ErrorResponse.of("TASK_NOT_FOUND", "任务不存在"));
+        }
+
+        // 检查任务所有权
+        if (!task.getUserId().equals(currentUser.getId())) {
+            return ResponseEntity.status(403)
+                    .body(ErrorResponse.of("FORBIDDEN", "无权操作此任务"));
+        }
+
+        boolean success = taskService.removeById(id);
+        if (success) {
+            return ResponseEntity.ok(Map.of("message", "删除成功"));
+        } else {
+            return ResponseEntity.internalServerError()
+                    .body(ErrorResponse.of("DELETE_FAILED", "删除任务失败"));
+        }
+    }
+
+    /**
+     * 批量删除任务
+     */
+    @DeleteMapping("/batch")
+    public ResponseEntity<?> batchDeleteTask(@RequestBody List<Long> taskIds,
+                                             HttpServletRequest request) {
+        User currentUser = getCurrentUser(request);
+
+        if (taskIds == null || taskIds.isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(ErrorResponse.of("INVALID_TASK_IDS", "任务ID列表不能为空"));
+        }
+
+        // 查询要删除的任务，确保都属于当前用户
+        QueryWrapper<TodoTask> wrapper = new QueryWrapper<>();
+        wrapper.in("id", taskIds).eq("user_id", currentUser.getId());
+        List<TodoTask> tasks = taskService.list(wrapper);
+
+        if (tasks.size() != taskIds.size()) {
+            return ResponseEntity.badRequest()
+                    .body(ErrorResponse.of("INVALID_TASKS", "部分任务不存在或无权操作"));
+        }
+
+        boolean success = taskService.removeByIds(taskIds);
+        if (success) {
+            return ResponseEntity.ok(Map.of("message", "批量删除成功", "count", tasks.size()));
+        } else {
+            return ResponseEntity.internalServerError()
+                    .body(ErrorResponse.of("DELETE_FAILED", "批量删除失败"));
         }
     }
 }
