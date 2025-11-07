@@ -66,9 +66,9 @@ spring:
     activate:
       on-profile: dev
   datasource:
-    url: jdbc:mysql://localhost:3306/miaomiao?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
+    url: jdbc:mysql://124.222.222.54:3306/miaomiao?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
     username: root
-    password: juan1992  # 开发环境密码
+    password: Juan1992@  # 开发环境密码 juan1992
 
 ---
 # ========== 生产环境配置 ==========

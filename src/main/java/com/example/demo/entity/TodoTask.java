@@ -19,5 +19,10 @@ public class TodoTask {
     @TableField("user_id")
     private Long userId;
 
+    // 新增字段
+    private Integer progress;     // 任务进度（0-100）
+    @TableField("order_index")
+    private Integer orderIndex;   // 任务顺序索引
+
 
 }
